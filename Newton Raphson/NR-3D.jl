@@ -4,90 +4,53 @@
 using Markdown
 using InteractiveUtils
 
-# ╔═╡ 625e2423-5c25-461a-803d-6530cbb9d7b7
-using Images, FileIO
+# ╔═╡ 34783e60-0dae-415b-9fc8-ae80a93bce78
+using Images;using FileIO;
 
-# ╔═╡ 503bcee0-10d9-4669-9c83-b0c2e9bb9378
-begin
-	using PlutoUI
-	using VideoIO
-	using Base64
-end
-
-# ╔═╡ 7eb47b47-eae6-4798-8ffb-1ffa968063a1
+# ╔═╡ 4709bbe6-1253-4585-a5f4-0add24027bf2
 begin
 	using Plots
 	using LaTeXStrings
 end
 
-# ╔═╡ 8ccd3e07-6a4d-4222-94d8-128449357bc9
-md""" ## Newton-Raphson 1D: (AFEM - Exercise 3.1)
+# ╔═╡ 35f2bf30-21d0-11ef-05d9-5d717632dc8b
+md"""## Newton-Raphson 3D: (AFEM - Exercise 3.2)
 
 """
 
-# ╔═╡ a8ca0e33-938d-46ab-a93c-43633e9c13c0
-md"""
-A swift introduction to *Taylor* series and the *Newton-Raphson* scheme and implementing the *Newton-Raphson* scheme in 1D.
+# ╔═╡ 9ad4cf3d-64bf-42fb-a41d-c241fa72f909
+load("./Resources/nonlinear.jpg")
+
+# ╔═╡ fd3f327b-3515-44ef-9ee3-86d7beaac92a
+md""" #### 1. Characteristics of Structural Behaviour in Real-World Proplems:
+ - Non linear response (e.g. geomerty, material, boundary conditions).
+ - Multiple solutions exist.
+ - Stability issues/linit points.
+ - Bifurcation behaviour.
+
 """
 
-# ╔═╡ fae32b1f-0169-4d18-9eff-b27bb9beaa88
-load("https://raw.githubusercontent.com/Abdelrahman912/AFEM-Notes/main/Newton%20Raphson/Resources/taylor.png")
+# ╔═╡ d6a6a28d-cf8d-4781-9422-238553efaeca
+load("./Resources/control.jpg")
 
-# ╔═╡ 38f5a123-edba-4aac-a2cc-cab55868e5f4
-md""" #### 1. Taylor Series:
-The Taylor series is a fundamental concept in calculus, providing a way to represent a function as an infinite sum of terms calculated from the values of its derivatives at a *single known point*. It is named after the British mathematician Brook Taylor who introduced these concepts in the early 18th century. 
+# ╔═╡ 64b0dde9-e923-41d8-8545-9c7d8e2b6092
+md""" #### 2. Nonlinear Problems Solution:
+Procedure for nonlinear problems solution encompasses two components: 
+1. **Incremental** strategy (i.e. control methods) 
+2. **Iterative** scheme (i.e. newton-raphson)
 
-##### 1.1. General formula:
+##### 2.1. Control Methods:
+Essentially, instead of applying all the load at once, we incrementally apply the load by factor (i.e. $\lambda$).\
+Control methods are not tightly coupled to load increments only but it can be:
+1. Load control
+2. Displacement control
+3. Arclength control
 
-$\begin{gather}
-
-f(x) = \sum_{n=0}^{\infty} \frac{f^{(n)}(a)}{n!} (x - a)^n \\
-f(x) = f(a) + f'(a)(x - a) + \underbrace{ \frac{f''(a)}{2!}(x - a)^2 + \frac{f'''(a)}{3!}(x - a)^3 + \cdots }_{\text{higher order terms}}
-
-\end{gather}$
 !!! note
-	It's usually difficult to know such huge amount of information about a function (i.e. all derivatives of a function), therefore it's suffice to use the linearized version of taylor when using small enough increments, i.e., 
-	
-	$\begin{gather}
-	f(x_{i+1}) \approx f(x_i) + f'(x_i)(\Delta x) 
-	\end{gather}$
+	**Notation**: we will use `n` to indicate the control/increment step index. 
 
-##### 1.2. Fromula used in this course:
-In this course we use the linearized version of taylor (1D & 3D) to derive our Newton-Raphson scheme.
-
-###### 1.2.1. Scalar Taylor:
-
-$\begin{gather}
-
-f(u_{k+1}) = f(u_k) + \underbrace{\frac{d f(u_k)}{d u}}_{\text{tangent stiffness } (k_t) } (\Delta u) 
-
-\end{gather}$
-
-###### 1.2.2. Vector Taylor:
-
-$\begin{gather}
-
-\boldsymbol{f}(\boldsymbol{u}_{k+1}) = \boldsymbol{f}(\boldsymbol{u}_k) + \underbrace{\frac{\partial \boldsymbol{f}(\boldsymbol{u}_k)}{\partial \boldsymbol{u}}}_{\text{tangent stiffness matrix} (\boldsymbol{K}_t) } (\Delta \boldsymbol{u}) 
-\end{gather}$
-
-
-"""
-
-# ╔═╡ 24906c40-4d21-4c8d-aab0-cd68421c7a98
-load("https://raw.githubusercontent.com/Abdelrahman912/AFEM-Notes/main/Newton%20Raphson/Resources/linear_taylor.jpg")
-
-# ╔═╡ 97c9e363-af6e-400a-9e79-8dfa7340694a
-md""" #### 2. Newton-Rapshon scheme:
-
-Here we are trying to search for the roots of our function (i.e. $f(u_{k+1}) = 0$), but since, we are using the linearized version of taylor series, then their will be errors and that's why we have to do this in an iterative manner, namely, *Newton-Raphson*.
-
-##### 2.1. Scalar Newton-Raphson:
-
-$\begin{gather}
-u_{k+1} = u_k - \frac{f(u_k)}{k_t} \; \; \; \& \; \; \; k_t = \frac{d f(u_k)}{du} 
-\end{gather}$
-
-##### 2.2. Vector Newton-Raphson:
+##### 2.2. Iteration Scheme:
+It's essentially the standard Newton-Raphson scheme, but it will be in vector form. i.e.,
 
 $\begin{gather}
 
@@ -99,108 +62,167 @@ $\begin{gather}
 
 \end{gather}$
 
+!!! note
+	**Notation**: we will use `k` to indicate the iteration index within one step. 
 
-
-
-"""
-
-# ╔═╡ 2e902005-66c0-484b-b128-f907ad1dd5dc
-html"""
-<iframe width="690" height="415" src="https://www.youtube.com/embed/uqCCic6u6_g?si=Kz6Rq630aiv55r1J" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
-"""
-
-# ╔═╡ 91a55c01-bf3d-40e2-bb28-afa222e846d0
-md""" #### 3. Exercise 1: Newton-Raphson 1D
-solve the following non-linear equation:
+###### 2.2.1. Convergence Criteria:
+We will use the **displacement-based** convergence criterion. i.e.,
 
 $\begin{gather}
-f(x) = x^2 - 3x + 2
+\eta^{k+1} = \frac{||\Delta \boldsymbol{u}||}{|| \boldsymbol{u}^{k+1}_{n+1} - \boldsymbol{u}_{n}||} \leq \epsilon
+
 \end{gather}$
+where,\
+$\Delta \boldsymbol{u} = \boldsymbol{u}^{k+1}_{n+1} - \boldsymbol{u}^{k}_{n+1}$ \
+$\boldsymbol{u}^{k+1}_{n+1}$: current displacement obtained in *Newton-Raphson* scheme. \
+$\boldsymbol{u}_{n}$: initial displacement for the `n+1` step, or the last displacement obtained in the `n` step.
+
+!!! note
+	For more convergence criteria, please refer to the exercise's slides.
+
 """
 
-# ╔═╡ b039ecd0-2365-4719-a35f-3ca55b35ee2d
-function f(x)
-	return x^2 - 3x + 2
+# ╔═╡ f99ae040-ef11-483a-ad5e-b21e92513d53
+md"""#### 3. The Nonlinear FEM Problem (Quick Recap !):
+The discretized nonlinear equation:
+
+$\begin{gather}
+\boldsymbol{f} = \boldsymbol{f}_{int} - \boldsymbol{f}_{ext} \\
+\text{to satisfy equilibrium: } \boldsymbol{f} \overset{!}{=} 0
+\end{gather}$
+
+!!! note
+	- In linear FEM the $\boldsymbol{u}$ is loosely coupled in $\boldsymbol{f}_{int}$ through the stiffness matrix ($\boldsymbol{K}$) $\Rightarrow \boldsymbol{K} \cdot \boldsymbol{u} = \boldsymbol{f}_{ext}$
+	- Sometimes, we use $\boldsymbol{r}$ instead to denote both internal and external for vectors (i.e., $\boldsymbol{r}_{int} = \boldsymbol{f}_{int}, \boldsymbol{r}_{ext} = \boldsymbol{f}_{ext}$).
+
+For tangent stiffness matrix ($\boldsymbol{K}_T$):
+
+$\begin{gather}
+
+\boldsymbol{K}_T = \frac{\partial \boldsymbol{f}}{\partial \boldsymbol{u}} = \frac{\partial \boldsymbol{f}_{int}}{\partial \boldsymbol{u}} - \underbrace{\frac{\partial \boldsymbol{f}_{ext}}{\partial \boldsymbol{u}}}_{0} \\
+
+\therefore \boldsymbol{K}_T  = \frac{\partial \boldsymbol{f}_{int}}{\partial \boldsymbol{u}}
+
+\end{gather}$
+
+!!! note
+	In many cases (and also in this course) $\frac{\partial \boldsymbol{f}_{ext}}{\partial \boldsymbol{u}}$ is equal to zero because the load is constant and doesn't change with the deformation.
+
+"""
+
+# ╔═╡ 1ecf5cb6-7ad4-4cc3-84ce-8bc9841de40d
+md""" #### 4. Algorithm of Load-Control Newton-Raphson scheme:
+
+"""
+
+# ╔═╡ 6d79d0ff-ddae-4f63-b5ff-a08b8e1e4f3b
+load("./Resources/algorithm.jpg")
+
+# ╔═╡ 908cae5d-51d7-4700-b6c2-478c4264d275
+md"""#### 5. Question:
+
+"""
+
+# ╔═╡ db5c3610-1279-4662-be1a-75e4312c40d1
+load("./Resources/2d_truss.jpg")
+
+# ╔═╡ 1e3bbcb1-99f9-4568-838e-46ad1f9ee2b9
+function r_int_fun(u::Vector)
+	u1 = u[1]
+	u2 = u[2]
+	r1 = 2*u1^3 + 3*u1^2 + u2^2*u1 + 6*u2*u1 + 82*u1 - 4*u2^2 - 24*u2
+    r2 = u2^3 + 9*u2^2 +  u1^2*u2 - 8*u1*u2 + 18*u2 +3u1^2- 24*u1
+    return [r1, r2]
 end
 
-# ╔═╡ 28850b5a-24e1-4dd4-a900-0e765d472fc4
-function df(x)
-	return 2x - 3
+# ╔═╡ 8667b1fa-71e2-4c76-923c-c1abb43bb183
+function K_t_fun(u::Vector)
+	u1 = u[1]
+	u2 = u[2]
+	k11 = 6*u1^2 + 6*u1 + u2^2 + 6*u2 + 82
+    k12 = 2*u2*u1 + 6u1 - 8u2 - 24
+    k21 = 2*u2*u1 + 6u1 - 8u2 - 24
+    k22 = u1^2 -8u1 + 3u2^2 + 18u2 + 18
+    return [k11 k12; k21 k22]
 end
 
-# ╔═╡ 7f026e55-f11b-44b6-ba5a-988caf642b37
-function error(f)
-	return abs(f)
+# ╔═╡ 5258df99-2ed0-4b9b-acfc-c70948aa6f33
+function error_fun(Δu, u_n1_k1,u_n)
+	η = (norm(Δu))/(norm(u_n1_k1 - u_n))
+	return η
 end
 
-# ╔═╡ fc8fbb8b-e5e6-448b-9129-f74e609230f5
-struct Solution
-	x::Float64
-	f_x::Float64
-	errs::Vector{Float64}
-	num_iter::Int64
-end
+# ╔═╡ 865a2cfe-f015-4189-8bfa-22d0e46a5695
+function newton_rapshon(uₒ::Vector,Δλ::Float64,rₒ::Vector,tol::Float64,max_iter::Int64,r_int::Function,K_t::Function,error::Function)
 
-# ╔═╡ 07c37317-7f4f-495b-bcd5-319a9b204487
-function newton_raphson(xₒ::Float64,tol::Float64,max_iter::Int64,f::Function,df::Function,err_fun::Function)
-	err = 1
-	errs = []
-	x_k = xₒ
+	u_k = uₒ
 	n = 0
-
-	while err > tol && n ≤ max_iter
-		n=n+1
-		f_xk = f(x_k)
-		k_t = df(x_k)
-		x_k1 = x_k - (f_xk/k_t)
-		err = err_fun(f(x_k1))
-		push!(errs,err)
-		x_k = x_k1
+	err = 1
+	
+	while err > tol && n <  max_iter
+		n+=1
+		ri_uk = r_int(u_k)
+		K_t_uk = K_t(u_k)
+		Δu = inv(K_t_uk) * (Δλ*rₒ  - ri_uk)
+		u_k1  = u_k + Δu
+		err = error(Δu,u_k1,uₒ)
+		u_k = u_k1
 	end
-
-	return Solution(x_k,f(x_k),errs,n)
-
+	return u_k
 end
 
-# ╔═╡ 9da965c3-3c5d-4912-a297-a7c0cd1086c0
+# ╔═╡ bc16675e-faeb-43ed-867e-97ea08a1d825
+function load_control_newton_raphson(uₒ::Vector,Δλ::Float64,n_steps::Int64,rₒ::Vector,tol::Float64,max_iter::Int64,r_int::Function,K_t::Function,error::Function)
+
+	u_n = uₒ
+	λ_n = 0
+	us =[]
+	λs = []
+
+	for n = 1:n_steps
+		λ_n+=Δλ
+		push!(λs,λ_n)
+		u_n1 = newton_rapshon(u_n,λ_n,rₒ,tol,max_iter,r_int,K_t,error)
+		push!(us,u_n1)
+		u_n = u_n1
+	end
+	us = reduce(hcat,[u for u in us])
+	return (;us,λs)
+end
+
+# ╔═╡ 9b5cf881-7a74-47a4-806d-9ca5c62460b3
 begin
-	x_o = 0.0
-	const TOL = 1e-4
+	uₒ = [0,0]
+	Δλ = 0.2
+	n_steps = 30
+	rₒ = [0,-6]
+	const TOL = 1e-6
 	max_iter = 20
-	(;x_o,TOL,max_iter)
+	(;uₒ,Δλ,n_steps,rₒ,TOL,max_iter)
 end
 
-# ╔═╡ 2102bdff-429e-4742-bdcf-8f6a1783287c
-sol = newton_raphson(x_o,TOL,max_iter,f,df,error)
+# ╔═╡ edd017c7-b0cb-47f7-a706-bb5a30ac2964
+us,λs = load_control_newton_raphson(uₒ,Δλ,n_steps,rₒ,TOL,max_iter,r_int_fun,K_t_fun,error_fun)
 
-# ╔═╡ f2ba6573-aa5a-4ae3-9b0b-f066fa8ac988
-plot(1:sol.num_iter,sol.errs,title=L"Convergence \; Rate \; f(x) = x^2 - 3x + 2",xlabel=L"iteration",ylabel=L"error",label=L"error")
-
-# ╔═╡ ffa5ed9a-8324-47f3-aaf1-eb8e2b759c04
+# ╔═╡ bccfe0b0-3011-49c6-a8e2-0e9af54739f8
 begin
-	xs = 0:0.1:4
-	fs = f.(xs)
-	plot(xs,fs,title=L"f(x) = x^2 - 3x + 2",xlabel=L"x",ylabel=L"f(x)",label=L"f(x)")
+	plot(us[2,:],λs,title="Load Control Method",xlabel=L"u",ylabel=L"\lambda",label=L"u_2")
+	plot!(us[1,:],λs,label=L"u_1")
 end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
-Base64 = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 FileIO = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
 Images = "916415d5-f1e6-5110-898d-aaa5f9f070e0"
 LaTeXStrings = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
-PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
-VideoIO = "d6d074c3-1acf-5d4c-9a43-ef38773959a2"
 
 [compat]
 FileIO = "~1.16.3"
 Images = "~0.26.1"
 LaTeXStrings = "~1.3.1"
 Plots = "~1.40.4"
-PlutoUI = "~0.7.59"
-VideoIO = "~1.1.0"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -209,7 +231,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.10.2"
 manifest_format = "2.0"
-project_hash = "d74e2ad1f83732d95140e87f1c3249e3765e3a46"
+project_hash = "2429a7eadd549d4351713ff4c9abb279cd817f8e"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -221,12 +243,6 @@ weakdeps = ["ChainRulesCore", "Test"]
     [deps.AbstractFFTs.extensions]
     AbstractFFTsChainRulesCoreExt = "ChainRulesCore"
     AbstractFFTsTestExt = "Test"
-
-[[deps.AbstractPlutoDingetjes]]
-deps = ["Pkg"]
-git-tree-sha1 = "6e1d2a35f2f90a4bc7c2ed98079b2ba09c35b83a"
-uuid = "6e696c72-6542-2067-7265-42206c756150"
-version = "1.3.2"
 
 [[deps.Adapt]]
 deps = ["LinearAlgebra", "Requires"]
@@ -375,10 +391,16 @@ uuid = "3da002f7-5984-5a60-b8a6-cbb66c0b333f"
 version = "0.11.5"
 
 [[deps.ColorVectorSpace]]
-deps = ["ColorTypes", "FixedPointNumbers", "LinearAlgebra", "SpecialFunctions", "Statistics", "TensorCore"]
-git-tree-sha1 = "600cc5508d66b78aae350f7accdb58763ac18589"
+deps = ["ColorTypes", "FixedPointNumbers", "LinearAlgebra", "Requires", "Statistics", "TensorCore"]
+git-tree-sha1 = "a1f44953f2382ebb937d60dafbe2deea4bd23249"
 uuid = "c3611d14-8923-5661-9e6a-0046d554d3a4"
-version = "0.9.10"
+version = "0.10.0"
+
+    [deps.ColorVectorSpace.extensions]
+    SpecialFunctionsExt = "SpecialFunctions"
+
+    [deps.ColorVectorSpace.weakdeps]
+    SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
 
 [[deps.Colors]]
 deps = ["ColorTypes", "FixedPointNumbers", "Reexport"]
@@ -506,10 +528,10 @@ uuid = "c87230d0-a227-11e9-1b43-d7ebe4e7570a"
 version = "0.4.1"
 
 [[deps.FFMPEG_jll]]
-deps = ["Artifacts", "Bzip2_jll", "FreeType2_jll", "FriBidi_jll", "JLLWrappers", "LAME_jll", "Libdl", "Ogg_jll", "OpenSSL_jll", "Opus_jll", "PCRE2_jll", "Zlib_jll", "libaom_jll", "libass_jll", "libfdk_aac_jll", "libvorbis_jll", "x264_jll", "x265_jll"]
-git-tree-sha1 = "466d45dc38e15794ec7d5d63ec03d776a9aff36e"
+deps = ["Artifacts", "Bzip2_jll", "FreeType2_jll", "FriBidi_jll", "JLLWrappers", "LAME_jll", "Libdl", "Ogg_jll", "OpenSSL_jll", "Opus_jll", "PCRE2_jll", "Pkg", "Zlib_jll", "libaom_jll", "libass_jll", "libfdk_aac_jll", "libvorbis_jll", "x264_jll", "x265_jll"]
+git-tree-sha1 = "74faea50c1d007c85837327f6775bea60b5492dd"
 uuid = "b22a6f82-2f65-5046-a5b2-351ab43fb4e5"
-version = "4.4.4+1"
+version = "4.4.2+2"
 
 [[deps.FFTViews]]
 deps = ["CustomUnitRanges", "FFTW"]
@@ -574,16 +596,16 @@ uuid = "0656b61e-2033-5cc2-a64a-77c0f6c09b89"
 version = "3.3.9+0"
 
 [[deps.GR]]
-deps = ["Artifacts", "Base64", "DelimitedFiles", "Downloads", "GR_jll", "HTTP", "JSON", "Libdl", "LinearAlgebra", "Preferences", "Printf", "Random", "Serialization", "Sockets", "TOML", "Tar", "Test", "p7zip_jll"]
-git-tree-sha1 = "ddda044ca260ee324c5fc07edb6d7cf3f0b9c350"
+deps = ["Artifacts", "Base64", "DelimitedFiles", "Downloads", "GR_jll", "HTTP", "JSON", "Libdl", "LinearAlgebra", "Pkg", "Preferences", "Printf", "Random", "Serialization", "Sockets", "TOML", "Tar", "Test", "UUIDs", "p7zip_jll"]
+git-tree-sha1 = "8e2d86e06ceb4580110d9e716be26658effc5bfd"
 uuid = "28b8d3ca-fb5f-59d9-8090-bfdbd6d07a71"
-version = "0.73.5"
+version = "0.72.8"
 
 [[deps.GR_jll]]
-deps = ["Artifacts", "Bzip2_jll", "Cairo_jll", "FFMPEG_jll", "Fontconfig_jll", "FreeType2_jll", "GLFW_jll", "JLLWrappers", "JpegTurbo_jll", "Libdl", "Libtiff_jll", "Pixman_jll", "Qt6Base_jll", "Zlib_jll", "libpng_jll"]
-git-tree-sha1 = "278e5e0f820178e8a26df3184fcb2280717c79b1"
+deps = ["Artifacts", "Bzip2_jll", "Cairo_jll", "FFMPEG_jll", "Fontconfig_jll", "GLFW_jll", "JLLWrappers", "JpegTurbo_jll", "Libdl", "Libtiff_jll", "Pixman_jll", "Qt5Base_jll", "Zlib_jll", "libpng_jll"]
+git-tree-sha1 = "da121cbdc95b065da07fbb93638367737969693f"
 uuid = "d2c73de3-f751-5644-a686-071e5b155ba9"
-version = "0.73.5+0"
+version = "0.72.8+0"
 
 [[deps.Gettext_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl", "Libiconv_jll", "Pkg", "XML2_jll"]
@@ -602,11 +624,6 @@ deps = ["Artifacts", "Gettext_jll", "JLLWrappers", "Libdl", "Libffi_jll", "Libic
 git-tree-sha1 = "7c82e6a6cd34e9d935e9aa4051b66c6ff3af59ba"
 uuid = "7746bdde-850d-59dc-9ae8-88ece973131d"
 version = "2.80.2+0"
-
-[[deps.Glob]]
-git-tree-sha1 = "97285bbd5230dd766e9ef6749b80fc617126d496"
-uuid = "c27321d9-0574-5035-807b-f59d2c89b15c"
-version = "1.3.1"
 
 [[deps.Graphics]]
 deps = ["Colors", "LinearAlgebra", "NaNMath"]
@@ -655,24 +672,6 @@ git-tree-sha1 = "eb8fed28f4994600e29beef49744639d985a04b2"
 uuid = "3e5b6fbb-0976-4d2c-9146-d79de83f2fb0"
 version = "0.1.16"
 
-[[deps.Hyperscript]]
-deps = ["Test"]
-git-tree-sha1 = "179267cfa5e712760cd43dcae385d7ea90cc25a4"
-uuid = "47d2ed2b-36de-50cf-bf87-49c2cf4b8b91"
-version = "0.0.5"
-
-[[deps.HypertextLiteral]]
-deps = ["Tricks"]
-git-tree-sha1 = "7134810b1afce04bbc1045ca1985fbe81ce17653"
-uuid = "ac1192a8-f4b3-4bfe-ba22-af5b92cd3ab2"
-version = "0.9.5"
-
-[[deps.IOCapture]]
-deps = ["Logging", "Random"]
-git-tree-sha1 = "8b72179abc660bfab5e28472e019392b97d0985c"
-uuid = "b5f81e59-6552-4d32-b1f0-c071b021bf89"
-version = "0.2.4"
-
 [[deps.IfElse]]
 git-tree-sha1 = "debdd00ffef04665ccbb3e150747a77560e8fad1"
 uuid = "615f187c-cbe4-4ef1-ba3b-2fcf58d6d173"
@@ -686,9 +685,9 @@ version = "0.6.11"
 
 [[deps.ImageBase]]
 deps = ["ImageCore", "Reexport"]
-git-tree-sha1 = "b51bb8cae22c66d0f6357e3bcb6363145ef20835"
+git-tree-sha1 = "eb49b82c172811fd2c86759fa0553a2221feb909"
 uuid = "c817782e-172a-44cc-b673-b171935fbb9e"
-version = "0.1.5"
+version = "0.1.7"
 
 [[deps.ImageBinarization]]
 deps = ["HistogramThresholding", "ImageCore", "LinearAlgebra", "Polynomials", "Reexport", "Statistics"]
@@ -703,10 +702,10 @@ uuid = "f332f351-ec65-5f6a-b3d1-319c6670881a"
 version = "0.3.12"
 
 [[deps.ImageCore]]
-deps = ["AbstractFFTs", "ColorVectorSpace", "Colors", "FixedPointNumbers", "Graphics", "MappedArrays", "MosaicViews", "OffsetArrays", "PaddedViews", "Reexport"]
-git-tree-sha1 = "acf614720ef026d38400b3817614c45882d75500"
+deps = ["ColorVectorSpace", "Colors", "FixedPointNumbers", "MappedArrays", "MosaicViews", "OffsetArrays", "PaddedViews", "PrecompileTools", "Reexport"]
+git-tree-sha1 = "b2a7eaa169c13f5bcae8131a83bc30eff8f71be0"
 uuid = "a09fc81d-aa75-5fe9-8630-4744c3626534"
-version = "0.9.4"
+version = "0.10.2"
 
 [[deps.ImageCorners]]
 deps = ["ImageCore", "ImageFiltering", "PrecompileTools", "StaticArrays", "StatsBase"]
@@ -722,9 +721,9 @@ version = "0.2.17"
 
 [[deps.ImageFiltering]]
 deps = ["CatIndices", "ComputationalResources", "DataStructures", "FFTViews", "FFTW", "ImageBase", "ImageCore", "LinearAlgebra", "OffsetArrays", "PrecompileTools", "Reexport", "SparseArrays", "StaticArrays", "Statistics", "TiledIteration"]
-git-tree-sha1 = "3447781d4c80dbe6d71d239f7cfb1f8049d4c84f"
+git-tree-sha1 = "432ae2b430a18c58eb7eca9ef8d0f2db90bc749c"
 uuid = "6a3955dd-da59-5b1f-98d4-e7296123deb5"
-version = "0.7.6"
+version = "0.7.8"
 
 [[deps.ImageIO]]
 deps = ["FileIO", "IndirectArrays", "JpegTurbo", "LazyModules", "Netpbm", "OpenEXR", "PNGFiles", "QOI", "Sixel", "TiffImages", "UUIDs"]
@@ -733,16 +732,16 @@ uuid = "82e4d734-157c-48bb-816b-45c225c6df19"
 version = "0.6.8"
 
 [[deps.ImageMagick]]
-deps = ["FileIO", "ImageCore", "ImageMagick_jll", "InteractiveUtils", "Libdl", "Pkg", "Random"]
-git-tree-sha1 = "5bc1cb62e0c5f1005868358db0692c994c3a13c6"
+deps = ["FileIO", "ImageCore", "ImageMagick_jll", "InteractiveUtils"]
+git-tree-sha1 = "8e2eae13d144d545ef829324f1f0a5a4fe4340f3"
 uuid = "6218d12a-5da1-5696-b52f-db25d2ecc6d1"
-version = "1.2.1"
+version = "1.3.1"
 
 [[deps.ImageMagick_jll]]
-deps = ["Artifacts", "Ghostscript_jll", "JLLWrappers", "JpegTurbo_jll", "Libdl", "Libtiff_jll", "OpenJpeg_jll", "Zlib_jll", "libpng_jll"]
-git-tree-sha1 = "d65554bad8b16d9562050c67e7223abf91eaba2f"
+deps = ["Artifacts", "Ghostscript_jll", "JLLWrappers", "JpegTurbo_jll", "Libdl", "Libtiff_jll", "OpenJpeg_jll", "Pkg", "Zlib_jll", "libpng_jll"]
+git-tree-sha1 = "8d2e786fd090199a91ecbf4a66d03aedd0fb24d4"
 uuid = "c73af94c-d91f-53ed-93a7-00f77d67a9d7"
-version = "6.9.13+0"
+version = "6.9.11+4"
 
 [[deps.ImageMetadata]]
 deps = ["AxisArrays", "ImageAxes", "ImageBase", "ImageCore"]
@@ -764,9 +763,9 @@ version = "0.3.7"
 
 [[deps.ImageSegmentation]]
 deps = ["Clustering", "DataStructures", "Distances", "Graphs", "ImageCore", "ImageFiltering", "ImageMorphology", "LinearAlgebra", "MetaGraphs", "RegionTrees", "SimpleWeightedGraphs", "StaticArrays", "Statistics"]
-git-tree-sha1 = "44664eea5408828c03e5addb84fa4f916132fc26"
+git-tree-sha1 = "3ff0ca203501c3eedde3c6fa7fd76b703c336b5f"
 uuid = "80713f31-8817-5129-9cf8-209ff8fb23e1"
-version = "1.8.1"
+version = "1.8.2"
 
 [[deps.ImageShow]]
 deps = ["Base64", "ColorSchemes", "FileIO", "ImageBase", "ImageCore", "OffsetArrays", "StackViews"]
@@ -1007,10 +1006,10 @@ uuid = "4b2f31a3-9ecc-558c-b454-b3730dcb73e9"
 version = "2.40.1+0"
 
 [[deps.Libtiff_jll]]
-deps = ["Artifacts", "JLLWrappers", "JpegTurbo_jll", "LERC_jll", "Libdl", "XZ_jll", "Zlib_jll", "Zstd_jll"]
-git-tree-sha1 = "2da088d113af58221c52828a80378e16be7d037a"
+deps = ["Artifacts", "JLLWrappers", "JpegTurbo_jll", "LERC_jll", "Libdl", "Pkg", "Zlib_jll", "Zstd_jll"]
+git-tree-sha1 = "3eb79b0ca5764d4799c06699573fd8f533259713"
 uuid = "89763e89-9b03-5906-acba-b20f662cd828"
-version = "4.5.1+1"
+version = "4.4.0+0"
 
 [[deps.Libuuid_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -1023,10 +1022,10 @@ deps = ["Libdl", "OpenBLAS_jll", "libblastrampoline_jll"]
 uuid = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 
 [[deps.LittleCMS_jll]]
-deps = ["Artifacts", "JLLWrappers", "JpegTurbo_jll", "Libdl", "Libtiff_jll"]
-git-tree-sha1 = "fa7fd067dca76cadd880f1ca937b4f387975a9f5"
+deps = ["Artifacts", "JLLWrappers", "JpegTurbo_jll", "Libdl", "Libtiff_jll", "Pkg"]
+git-tree-sha1 = "110897e7db2d6836be22c18bffd9422218ee6284"
 uuid = "d3a379c0-f9a3-5b72-a4c0-6bf4d2e8af0f"
-version = "2.16.0+0"
+version = "2.12.0+0"
 
 [[deps.LogExpFunctions]]
 deps = ["DocStringExtensions", "IrrationalConstants", "LinearAlgebra"]
@@ -1067,11 +1066,6 @@ version = "0.12.170"
     ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
     ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
     SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
-
-[[deps.MIMEs]]
-git-tree-sha1 = "65f28ad4b594aebe22157d6fac869786a255b7eb"
-uuid = "6c6e2e6c-3030-632d-7369-2d6c69616d65"
-version = "0.1.4"
 
 [[deps.MKL_jll]]
 deps = ["Artifacts", "IntelOpenMP_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "oneTBB_jll"]
@@ -1195,10 +1189,10 @@ uuid = "18a262bb-aa17-5467-a713-aee519bc75cb"
 version = "3.2.4+0"
 
 [[deps.OpenJpeg_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Libtiff_jll", "LittleCMS_jll", "libpng_jll"]
-git-tree-sha1 = "f4cb457ffac5f5cf695699f82c537073958a6a6c"
+deps = ["Artifacts", "JLLWrappers", "Libdl", "Libtiff_jll", "LittleCMS_jll", "Pkg", "libpng_jll"]
+git-tree-sha1 = "76374b6e7f632c130e78100b166e5a48464256f8"
 uuid = "643b3616-a352-519d-856d-80112ee9badc"
-version = "2.5.2+0"
+version = "2.4.0+0"
 
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
@@ -1213,15 +1207,9 @@ version = "1.4.3"
 
 [[deps.OpenSSL_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "3da7367955dcc5c54c1ba4d402ccdc09a1a3e046"
+git-tree-sha1 = "a12e56c72edee3ce6b96667745e6cbbe5498f200"
 uuid = "458c3c95-2e84-50aa-8efc-19380b2a3a95"
-version = "3.0.13+1"
-
-[[deps.OpenSpecFun_jll]]
-deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "13652491f6856acfd2db29360e1bbcd4565d04f1"
-uuid = "efe28fd5-8261-553b-a9e1-b2916fc3738e"
-version = "0.5.5+0"
+version = "1.1.23+0"
 
 [[deps.Opus_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -1317,12 +1305,6 @@ version = "1.40.4"
     ImageInTerminal = "d8c32880-2388-543b-8c61-d9f865259254"
     Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
-[[deps.PlutoUI]]
-deps = ["AbstractPlutoDingetjes", "Base64", "ColorTypes", "Dates", "FixedPointNumbers", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "JSON", "Logging", "MIMEs", "Markdown", "Random", "Reexport", "URIs", "UUIDs"]
-git-tree-sha1 = "ab55ee1510ad2af0ff674dbcced5e94921f867a9"
-uuid = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
-version = "0.7.59"
-
 [[deps.PolyesterWeave]]
 deps = ["BitTwiddlingConvenienceFunctions", "CPUSummary", "IfElse", "Static", "ThreadingUtilities"]
 git-tree-sha1 = "240d7170f5ffdb285f9427b92333c3463bf65bf6"
@@ -1373,11 +1355,11 @@ git-tree-sha1 = "18e8f4d1426e965c7b532ddd260599e1510d26ce"
 uuid = "4b34888f-f399-49d4-9bb3-47ed5cae4e65"
 version = "1.0.0"
 
-[[deps.Qt6Base_jll]]
-deps = ["Artifacts", "CompilerSupportLibraries_jll", "Fontconfig_jll", "Glib_jll", "JLLWrappers", "Libdl", "Libglvnd_jll", "OpenSSL_jll", "Vulkan_Loader_jll", "Xorg_libSM_jll", "Xorg_libXext_jll", "Xorg_libXrender_jll", "Xorg_libxcb_jll", "Xorg_xcb_util_cursor_jll", "Xorg_xcb_util_image_jll", "Xorg_xcb_util_keysyms_jll", "Xorg_xcb_util_renderutil_jll", "Xorg_xcb_util_wm_jll", "Zlib_jll", "libinput_jll", "xkbcommon_jll"]
-git-tree-sha1 = "37b7bb7aabf9a085e0044307e1717436117f2b3b"
-uuid = "c0090381-4147-56d7-9ebc-da0b1113ec56"
-version = "6.5.3+1"
+[[deps.Qt5Base_jll]]
+deps = ["Artifacts", "CompilerSupportLibraries_jll", "Fontconfig_jll", "Glib_jll", "JLLWrappers", "Libdl", "Libglvnd_jll", "OpenSSL_jll", "Pkg", "Xorg_libXext_jll", "Xorg_libxcb_jll", "Xorg_xcb_util_image_jll", "Xorg_xcb_util_keysyms_jll", "Xorg_xcb_util_renderutil_jll", "Xorg_xcb_util_wm_jll", "Zlib_jll", "xkbcommon_jll"]
+git-tree-sha1 = "0c03844e2231e12fda4d0086fd7cbe4098ee8dc5"
+uuid = "ea2cea3b-5b76-57ae-a6ef-0a8af62496e1"
+version = "5.15.3+2"
 
 [[deps.Quaternions]]
 deps = ["LinearAlgebra", "Random", "RealDot"]
@@ -1536,16 +1518,6 @@ deps = ["Libdl", "LinearAlgebra", "Random", "Serialization", "SuiteSparse_jll"]
 uuid = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 version = "1.10.0"
 
-[[deps.SpecialFunctions]]
-deps = ["IrrationalConstants", "LogExpFunctions", "OpenLibm_jll", "OpenSpecFun_jll"]
-git-tree-sha1 = "2f5d4697f21388cbe1ff299430dd169ef97d7e14"
-uuid = "276daf66-3868-5448-9aa4-cd146d93841b"
-version = "2.4.0"
-weakdeps = ["ChainRulesCore"]
-
-    [deps.SpecialFunctions.extensions]
-    SpecialFunctionsChainRulesCoreExt = "ChainRulesCore"
-
 [[deps.StackViews]]
 deps = ["OffsetArrays"]
 git-tree-sha1 = "46e589465204cd0c08b4bd97385e4fa79a0c770c"
@@ -1658,11 +1630,6 @@ weakdeps = ["Random", "Test"]
     [deps.TranscodingStreams.extensions]
     TestExt = ["Test", "Random"]
 
-[[deps.Tricks]]
-git-tree-sha1 = "eae1bb484cd63b36999ee58be2de6c178105112f"
-uuid = "410a4b4d-49e4-4fbc-ab6d-cb71b17b3775"
-version = "0.1.8"
-
 [[deps.URIs]]
 git-tree-sha1 = "67db6cc7b3821e19ebe75791a9dd19c9b1188f2b"
 uuid = "5c2747f8-b7ea-4ff2-ba2e-563bfd36b1d4"
@@ -1717,18 +1684,6 @@ git-tree-sha1 = "e863582a41c5731f51fd050563ae91eb33cf09be"
 uuid = "3d5dd08c-fd9d-11e8-17fa-ed2836048c2f"
 version = "0.21.68"
 
-[[deps.VideoIO]]
-deps = ["ColorTypes", "Dates", "Downloads", "FFMPEG", "FFMPEG_jll", "FileIO", "Glob", "ImageCore", "PrecompileTools", "Scratch"]
-git-tree-sha1 = "4aaf8a88550d628b8142ed6772901fdf9cef55fd"
-uuid = "d6d074c3-1acf-5d4c-9a43-ef38773959a2"
-version = "1.1.0"
-
-[[deps.Vulkan_Loader_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Wayland_jll", "Xorg_libX11_jll", "Xorg_libXrandr_jll", "xkbcommon_jll"]
-git-tree-sha1 = "2f0486047a07670caad3a81a075d2e518acc5c59"
-uuid = "a44049a8-05dd-5a78-86c9-5fde0876e88c"
-version = "1.3.243+0"
-
 [[deps.Wayland_jll]]
 deps = ["Artifacts", "EpollShim_jll", "Expat_jll", "JLLWrappers", "Libdl", "Libffi_jll", "Pkg", "XML2_jll"]
 git-tree-sha1 = "7558e29847e99bc3f04d6569e82d0f5c54460703"
@@ -1758,24 +1713,6 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Libgcrypt_jll", "Libgpg_error_jll"
 git-tree-sha1 = "91844873c4085240b95e795f692c4cec4d805f8a"
 uuid = "aed1982a-8fda-507f-9586-7b0439959a61"
 version = "1.1.34+0"
-
-[[deps.XZ_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "ac88fb95ae6447c8dda6a5503f3bafd496ae8632"
-uuid = "ffd25f8a-64ca-5728-b0f7-c24cf3aae800"
-version = "5.4.6+0"
-
-[[deps.Xorg_libICE_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "326b4fea307b0b39892b3e85fa451692eda8d46c"
-uuid = "f67eecfb-183a-506d-b269-f58e52b52d7c"
-version = "1.1.1+0"
-
-[[deps.Xorg_libSM_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Xorg_libICE_jll"]
-git-tree-sha1 = "3796722887072218eabafb494a13c963209754ce"
-uuid = "c834827a-8449-5923-a945-d239c165b7dd"
-version = "1.2.4+0"
 
 [[deps.Xorg_libX11_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Xorg_libxcb_jll", "Xorg_xtrans_jll"]
@@ -1855,12 +1792,6 @@ git-tree-sha1 = "730eeca102434283c50ccf7d1ecdadf521a765a4"
 uuid = "cc61e674-0454-545c-8b26-ed2c68acab7a"
 version = "1.1.2+0"
 
-[[deps.Xorg_xcb_util_cursor_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Xorg_xcb_util_image_jll", "Xorg_xcb_util_jll", "Xorg_xcb_util_renderutil_jll"]
-git-tree-sha1 = "04341cb870f29dcd5e39055f895c39d016e18ccd"
-uuid = "e920d4aa-a673-5f3a-b3d7-f755a4d47c43"
-version = "0.1.4+0"
-
 [[deps.Xorg_xcb_util_image_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg", "Xorg_xcb_util_jll"]
 git-tree-sha1 = "0fab0a40349ba1cba2c1da699243396ff8e94b97"
@@ -1920,23 +1851,11 @@ git-tree-sha1 = "e678132f07ddb5bfa46857f0d7620fb9be675d3b"
 uuid = "3161d3a3-bdf6-5164-811a-617609db77b4"
 version = "1.5.6+0"
 
-[[deps.eudev_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg", "gperf_jll"]
-git-tree-sha1 = "431b678a28ebb559d224c0b6b6d01afce87c51ba"
-uuid = "35ca27e7-8b34-5b7f-bca9-bdc33f59eb06"
-version = "3.2.9+0"
-
 [[deps.fzf_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
 git-tree-sha1 = "a68c9655fbe6dfcab3d972808f1aafec151ce3f8"
 uuid = "214eeab7-80f7-51ab-84ad-2988db7cef09"
 version = "0.43.0+0"
-
-[[deps.gperf_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "3516a5630f741c9eecb3720b1ec9d8edc3ecc033"
-uuid = "1a1c6b14-54f6-533d-8383-74cd7377aa70"
-version = "3.1.1+0"
 
 [[deps.libaom_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -1955,23 +1874,11 @@ deps = ["Artifacts", "Libdl"]
 uuid = "8e850b90-86db-534c-a0d3-1478176c7d93"
 version = "5.8.0+1"
 
-[[deps.libevdev_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "141fe65dc3efabb0b1d5ba74e91f6ad26f84cc22"
-uuid = "2db6ffa8-e38f-5e21-84af-90c45d0032cc"
-version = "1.11.0+0"
-
 [[deps.libfdk_aac_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "daacc84a041563f965be61859a36e17c4e4fcd55"
 uuid = "f638f0a6-7fb0-5443-88ba-1cc74229b280"
 version = "2.0.2+0"
-
-[[deps.libinput_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg", "eudev_jll", "libevdev_jll", "mtdev_jll"]
-git-tree-sha1 = "ad50e5b90f222cfe78aa3d5183a20a12de1322ce"
-uuid = "36db933b-70db-51c0-b978-0f229ee0e533"
-version = "1.18.0+0"
 
 [[deps.libpng_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Zlib_jll"]
@@ -1990,12 +1897,6 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Ogg_jll", "Pkg"]
 git-tree-sha1 = "b910cb81ef3fe6e78bf6acee440bda86fd6ae00c"
 uuid = "f27f6e37-5d2b-51aa-960f-b287f2bc3b7a"
 version = "1.3.7+1"
-
-[[deps.mtdev_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "814e154bdb7be91d78b6802843f76b6ece642f11"
-uuid = "009596ad-96f7-51b1-9f1b-5ce2d5e8a71e"
-version = "1.1.6+0"
 
 [[deps.nghttp2_jll]]
 deps = ["Artifacts", "Libdl"]
@@ -2033,25 +1934,25 @@ version = "1.4.1+1"
 """
 
 # ╔═╡ Cell order:
-# ╟─8ccd3e07-6a4d-4222-94d8-128449357bc9
-# ╟─a8ca0e33-938d-46ab-a93c-43633e9c13c0
-# ╠═625e2423-5c25-461a-803d-6530cbb9d7b7
-# ╟─fae32b1f-0169-4d18-9eff-b27bb9beaa88
-# ╟─38f5a123-edba-4aac-a2cc-cab55868e5f4
-# ╟─24906c40-4d21-4c8d-aab0-cd68421c7a98
-# ╟─97c9e363-af6e-400a-9e79-8dfa7340694a
-# ╠═503bcee0-10d9-4669-9c83-b0c2e9bb9378
-# ╟─2e902005-66c0-484b-b128-f907ad1dd5dc
-# ╟─91a55c01-bf3d-40e2-bb28-afa222e846d0
-# ╠═b039ecd0-2365-4719-a35f-3ca55b35ee2d
-# ╠═28850b5a-24e1-4dd4-a900-0e765d472fc4
-# ╠═7f026e55-f11b-44b6-ba5a-988caf642b37
-# ╠═fc8fbb8b-e5e6-448b-9129-f74e609230f5
-# ╠═07c37317-7f4f-495b-bcd5-319a9b204487
-# ╠═9da965c3-3c5d-4912-a297-a7c0cd1086c0
-# ╠═2102bdff-429e-4742-bdcf-8f6a1783287c
-# ╠═7eb47b47-eae6-4798-8ffb-1ffa968063a1
-# ╠═f2ba6573-aa5a-4ae3-9b0b-f066fa8ac988
-# ╠═ffa5ed9a-8324-47f3-aaf1-eb8e2b759c04
+# ╟─35f2bf30-21d0-11ef-05d9-5d717632dc8b
+# ╠═34783e60-0dae-415b-9fc8-ae80a93bce78
+# ╟─9ad4cf3d-64bf-42fb-a41d-c241fa72f909
+# ╟─fd3f327b-3515-44ef-9ee3-86d7beaac92a
+# ╟─d6a6a28d-cf8d-4781-9422-238553efaeca
+# ╟─64b0dde9-e923-41d8-8545-9c7d8e2b6092
+# ╟─f99ae040-ef11-483a-ad5e-b21e92513d53
+# ╟─1ecf5cb6-7ad4-4cc3-84ce-8bc9841de40d
+# ╟─6d79d0ff-ddae-4f63-b5ff-a08b8e1e4f3b
+# ╟─908cae5d-51d7-4700-b6c2-478c4264d275
+# ╟─db5c3610-1279-4662-be1a-75e4312c40d1
+# ╠═1e3bbcb1-99f9-4568-838e-46ad1f9ee2b9
+# ╠═8667b1fa-71e2-4c76-923c-c1abb43bb183
+# ╠═5258df99-2ed0-4b9b-acfc-c70948aa6f33
+# ╠═865a2cfe-f015-4189-8bfa-22d0e46a5695
+# ╠═bc16675e-faeb-43ed-867e-97ea08a1d825
+# ╠═9b5cf881-7a74-47a4-806d-9ca5c62460b3
+# ╠═edd017c7-b0cb-47f7-a706-bb5a30ac2964
+# ╠═4709bbe6-1253-4585-a5f4-0add24027bf2
+# ╠═bccfe0b0-3011-49c6-a8e2-0e9af54739f8
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
